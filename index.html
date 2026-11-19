@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="so">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dukaanka — App, Buugag & eFootball Coins</title>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;800&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--pitch:#0f3d2e;--chalk:#f7f6f1;--gold:#e8a317;--ink:#17201c;--line:#d9d8cf}
+*{box-sizing:border-box}
+body{margin:0;font:17px/1.55 'Source Sans 3',sans-serif;background:var(--chalk);color:var(--ink)}
+h1,h2,h3{font-family:'Bricolage Grotesque',sans-serif;line-height:1.1;margin:0}
+header{background:var(--pitch);color:var(--chalk);padding:56px 20px 64px}
+.wrap{max-width:980px;margin:auto}
+header h1{font-size:clamp(34px,7vw,64px);font-weight:800;max-width:14ch}
+header p{max-width:46ch;opacity:.85;margin:16px 0 24px}
+.btn{background:var(--gold);color:var(--ink);border:0;padding:12px 20px;font:600 16px inherit;border-radius:6px;cursor:pointer;text-decoration:none;display:inline-block}
+.btn:focus-visible,input:focus-visible{outline:3px solid var(--pitch);outline-offset:2px}
+section{padding:44px 20px}
+h2{font-size:30px;margin-bottom:18px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px}
+.item{background:#fff;border:1px solid var(--line);padding:16px;display:flex;flex-direction:column;gap:8px}
+.item h3{font-size:19px}.item p{margin:0;font-size:15px;opacity:.75;flex:1}
+.price{font-weight:600;font-size:20px}
+.coins .item{border-left:5px solid var(--gold)}
+dialog{border:0;border-radius:8px;padding:24px;width:min(420px,92vw)}
+dialog::backdrop{background:#0008}
+label{display:block;margin:12px 0 4px;font-weight:600;font-size:15px}
+input{width:100%;padding:10px;border:1px solid var(--line);border-radius:6px;font:inherit}
+.msg{margin-top:12px;font-weight:600}
+footer{padding:28px 20px;border-top:1px solid var(--line);font-size:14px}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <h1>Buugag, app, iyo eFootball coins.</h1>
+  <p>Dooro waxaad rabto, dalbo daqiiqado gudahood, lacagta ku bixi EVC Plus ama Zaad.</p>
+  <a class="btn" href="#coins">Iibso coins</a>
+</div></header>
+
+<section><div class="wrap"><h2>App-ka</h2><div class="grid" id="app"></div></div></section>
+<section><div class="wrap"><h2>7-da buug</h2><div class="grid" id="buug"></div></div></section>
+<section class="coins"><div class="wrap" id="coins"><h2>eFootball coins</h2><div class="grid" id="coinsGrid"></div></div></section>
+
+<dialog id="dlg">
+  <h3 id="dTitle"></h3>
+  <p id="dPrice" class="price"></p>
+  <label>Magacaaga</label><input id="name" autocomplete="name">
+  <label>Telefoonka (WhatsApp)</label><input id="phone" inputmode="tel">
+  <div id="gameWrap"><label>eFootball ID</label><input id="gameId"></div>
+  <label>Lambarka lacag bixinta (EVC/Zaad)</label><input id="ref">
+  <p class="msg" id="msg"></p>
+  <button class="btn" id="send">Dir dalabka</button>
+  <button class="btn" style="background:#ddd" onclick="dlg.close()">Xidh</button>
+</dialog>
+
+<footer><div class="wrap">Lacag bixinta: EVC Plus / Zaad: <b>LAMBARKAAGA HALKAN</b> — kadib dir dalabka halkan.</div></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script>
+// ⚠️ Beddel labadan Supabase > Project Settings > API
+const SUPABASE_URL = 'https://uprzldotdbktahfwwaqk.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_16N8ejryZdngvNYPj2Xp9Q_RbshlWjl';
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+let current = null;
+
+async function load(){
+  const { data, error } = await db.from('products').select('*').order('id');
+  if(error){ document.body.insertAdjacentHTML('afterbegin','<p style="padding:12px;background:#fdd">Supabase ma xirna. Hubi URL iyo KEY.</p>'); return; }
+  const box = {app:app, buug:buug, coins:coinsGrid};
+  data.forEach(p=>{
+    const el = document.createElement('div'); el.className='item';
+    el.innerHTML = `<h3></h3><p></p><span class="price">$${p.price}</span><button class="btn">Iibso</button>`;
+    el.querySelector('h3').textContent = p.title;
+    el.querySelector('p').textContent = p.description||'';
+    el.querySelector('button').onclick = ()=>open(p);
+    box[p.category].appendChild(el);
+  });
+}
+function open(p){
+  current = p; dTitle.textContent = p.title; dPrice.textContent = '$'+p.price;
+  gameWrap.style.display = p.category==='coins' ? 'block':'none';
+  msg.textContent=''; dlg.showModal();
+}
+send.onclick = async ()=>{
+  if(!name.value.trim() || !phone.value.trim()){ msg.textContent='Geli magaca iyo telefoonka.'; return; }
+  if(current.category==='coins' && !gameId.value.trim()){ msg.textContent='Geli eFootball ID.'; return; }
+  const { error } = await db.from('orders').insert({
+    product_id: current.id, customer_name: name.value.trim(), phone: phone.value.trim(),
+    game_id: gameId.value.trim()||null, pay_ref: ref.value.trim()||null });
+  msg.textContent = error ? 'Cilad ayaa dhacday, mar kale isku day.' : 'Waa la helay! Waan kula xiriiri doonaa WhatsApp.';
+};
+load();
+</script>
+</body>
+</html>
